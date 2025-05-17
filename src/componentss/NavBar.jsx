@@ -1,18 +1,22 @@
-import { FiMenu, FiX } from 'react-icons/fi';
+import { FiMenu, FiX, FiUser, FiLogOut } from 'react-icons/fi';
 import { useState } from 'react';
-import NavLinks from './NavLinks';   
+import NavLinks from './NavLinks';
 import SearchBar from './SearchBar';
 import LoginButton from './LoginButton';
+import { useAuth } from '../context/AuthContext';
+import { Menu } from '@headlessui/react';
+import { useNavigate } from 'react-router-dom';
 
 const NavBar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
+  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+  const handleLinkClick = () => setIsMenuOpen(false);
 
-  const handleLinkClick = () => {
-    setIsMenuOpen(false);
+  const goToProfile = () => {
+    navigate('/profile');
   };
 
   return (
@@ -25,27 +29,62 @@ const NavBar = () => {
           alt="Logo"
         />
 
-        {/* For large screens: Show navigation links and login button */}
+        {/* Desktop */}
         <div className="hidden lg:flex items-center space-x-8 flex-1 justify-center">
-          {/* Navigation Links */}
           <NavLinks onLinkClick={handleLinkClick} />
-
-          {/* Search Bar */}
           <SearchBar />
 
-          {/* Login Button */}
-          <LoginButton />
+          {user ? (
+            <Menu as="div" className="relative">
+              <Menu.Button className="flex items-center focus:outline-none">
+                <img
+                  src={user.photoURL || '/default-avatar.png'}
+                  alt="profile"
+                  className="w-9 h-9 rounded-full border border-gray-300"
+                />
+              </Menu.Button>
+              <Menu.Items className="absolute right-0 mt-2 w-48 bg-white border rounded-md shadow-lg z-10">
+                <div className="p-4 border-b">
+                  <p className="font-semibold text-sm">{user.displayName || 'User'}</p>
+                  <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                </div>
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      onClick={goToProfile}
+                      className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 ${
+                        active ? 'bg-gray-100' : ''
+                      }`}
+                    >
+                      <FiUser /> Profile
+                    </button>
+                  )}
+                </Menu.Item>
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      onClick={logout}
+                      className={`w-full text-left px-4 py-2 text-sm text-red-600 flex items-center gap-2 ${
+                        active ? 'bg-gray-100' : ''
+                      }`}
+                    >
+                      <FiLogOut /> Logout
+                    </button>
+                  )}
+                </Menu.Item>
+              </Menu.Items>
+            </Menu>
+          ) : (
+            <LoginButton />
+          )}
         </div>
 
-        {/* For small and medium screens: Hamburger menu */}
+        {/* Mobile */}
         <div className="lg:hidden flex items-center flex-1 justify-between">
-          {/* Search Bar */}
           <SearchBar />
-
-          {/* Hamburger Icon */}
           <button
-            aria-label={isMenuOpen ? "Close menu" : "Open menu"}
-            className="flex items-center text-gray-700 hover:text-[#f25d9c] transition duration-300"
+            aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+            className="text-gray-700 hover:text-[#f25d9c] transition duration-300"
             onClick={toggleMenu}
           >
             {isMenuOpen ? <FiX className="text-gray-500" /> : <FiMenu className="text-gray-500" />}
@@ -53,13 +92,33 @@ const NavBar = () => {
         </div>
       </div>
 
-      {/* Mobile Navigation Links */}
-      <div
-        className={`lg:hidden flex flex-col items-center mt-4 space-y-2 transition-transform duration-300 ${
-          isMenuOpen ? 'block' : 'hidden'
-        }`}
-      >
+      {/* Mobile Nav */}
+      <div className={`lg:hidden ${isMenuOpen ? 'block' : 'hidden'} mt-4 space-y-2 px-4`}>
         <NavLinks onLinkClick={handleLinkClick} />
+        {user ? (
+          <div className="flex items-center justify-between px-4 py-2 border rounded-md bg-gray-50">
+            <div>
+              <p className="text-sm font-semibold">{user.displayName || 'User'}</p>
+              <p className="text-xs text-gray-500">{user.email}</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={goToProfile}
+                className="text-sm text-blue-600 hover:underline"
+              >
+                Profile
+              </button>
+              <button
+                onClick={logout}
+                className="text-red-500 hover:text-red-700 text-sm flex items-center gap-1"
+              >
+                <FiLogOut /> Logout
+              </button>
+            </div>
+          </div>
+        ) : (
+          <LoginButton />
+        )}
       </div>
     </nav>
   );

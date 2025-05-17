@@ -1,11 +1,56 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FaMapMarkerAlt, FaBuilding, FaRupeeSign, FaSearch, FaHome } from 'react-icons/fa';
+import axios from 'axios';
 
 const WelcomeSection = () => {
   const [selectedCategory, setSelectedCategory] = useState('Buy');
+  const [searchInput, setSearchInput] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [selectedCity, setSelectedCity] = useState('');
 
   const handleCategoryClick = (category) => {
     setSelectedCategory(category);
+  };
+
+  useEffect(() => {
+    if (searchInput.length < 1) { // Show suggestions as soon as one character is typed
+      setSuggestions([]);
+      return;
+    }
+
+    const fetchCities = async () => {
+      try {
+        const response = await axios.get(`http://localhost:3000/api/cities/IN`, {
+          params: { searchInput },
+        });
+
+        // Filter to show only cities or towns that match the search input
+        const cityResults = response.data
+          .map((city) => ({
+            name: city.name,
+            display_name: city.display_name,
+          }))
+          .slice(0, 6); // Limit results to 6 cities
+
+        setSuggestions(cityResults);
+      } catch (error) {
+        console.error('Error fetching cities:', error);
+      }
+    };
+
+    const debounce = setTimeout(fetchCities, 700); // Debounce the API call
+    return () => clearTimeout(debounce);
+  }, [searchInput]);
+
+  const handleInputChange = (e) => {
+    const sanitizedInput = e.target.value.replace(/[^a-zA-Z0-9 ]/g, ''); // sanitize input
+    setSearchInput(sanitizedInput);
+  };
+
+  const handleSuggestionClick = (cityName) => {
+    setSearchInput(cityName);
+    setSelectedCity(cityName); // Store selected city
+    setSuggestions([]); // Clear suggestions
   };
 
   return (
@@ -48,13 +93,30 @@ const WelcomeSection = () => {
           {['Buy', 'Sell', 'Rent'].includes(selectedCategory) && (
             <>
               {/* Location Input */}
-              <div className="flex items-center space-x-2">
+              <div className="relative flex items-center space-x-2">
                 <FaMapMarkerAlt className="text-gray-500" />
                 <input
                   type="text"
+                  value={searchInput}
+                  onChange={handleInputChange}
                   placeholder="Enter City"
                   className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#f25d9c] text-lg"
                 />
+                
+                {/* Suggestions */}
+                {suggestions.length > 0 && (
+                  <ul className="absolute top-full left-0 mt-1 w-full bg-white border rounded-md shadow-md z-10">
+                    {suggestions.map((city, idx) => (
+                      <li
+                        key={idx}
+                        onClick={() => handleSuggestionClick(city.name)}
+                        className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-left text-sm"
+                      >
+                        {city.name}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
               {/* Property Type Input */}

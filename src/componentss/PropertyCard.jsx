@@ -3,7 +3,13 @@ import PropTypes from 'prop-types';
 const PropertyCard = ({ image, address, price, beds, baths, sqft, type }) => {
   return (
     <div className="bg-white rounded-lg border border-gray-200 shadow-md overflow-hidden transition-transform hover:scale-105 hover:shadow-xl">
-      <img className="w-full h-56 object-cover" src={image} alt="property" />
+      <div className="w-full h-56 bg-gray-100 flex items-center justify-center">
+        <img
+          className="max-h-full max-w-full object-contain"
+          src={image}
+          alt="property"
+        />
+      </div>
       <div className="p-5">
         <p className="text-gray-900 font-bold text-lg">{address}</p>
         <div className="flex items-center my-3 text-gray-700 space-x-4">
@@ -29,7 +35,7 @@ const PropertyCard = ({ image, address, price, beds, baths, sqft, type }) => {
 
 // Define Prop Types
 PropertyCard.propTypes = {
-  image: PropTypes.string.isRequired, // Ensure 'image' is a string and required
+  image: PropTypes.string.isRequired,
   address: PropTypes.string.isRequired,
   price: PropTypes.number.isRequired,
   beds: PropTypes.number.isRequired,

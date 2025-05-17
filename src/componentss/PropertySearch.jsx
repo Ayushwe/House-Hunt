@@ -1,50 +1,83 @@
-// src/components/PropertySearch.js
-import { FaSearch } from 'react-icons/fa'; // Import the search icon
-import { useState } from 'react';
-
-const properties = [
-  { id: 1, address: '123 Main St', type: 'Buy', price: 15000, bedrooms: 3, sqft: 1000, yearBuilt: 2010, forSaleBy: 'Agent', newConstruction: false },
-  { id: 2, address: '456 Elm St', type: 'Rent', price: 18000, bedrooms: 2, sqft: 800, yearBuilt: 2015, forSaleBy: 'Owner', newConstruction: false },
-  { id: 3, address: '789 Oak St', type: 'Buy', price: 20000, bedrooms: 4, sqft: 1500, yearBuilt: 2020, forSaleBy: 'Agent', newConstruction: true },
-  // Add more properties as needed
-];
+import { useEffect, useState } from "react";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../firebase";
+import PropertyFilters from "./PropertyFilters";
 
 const PropertySearch = () => {
-  const [filters, setFilters] = useState({
-    type: '', // No filter by default
-    price: '', // No filter by default
-    bedrooms: '', // No filter by default
-    sqft: [0, 100000], // No filter by default
-    yearBuilt: [0, 10000], // No filter by default
-    forSaleBy: '', // No filter by default
-    newConstruction: false, // No filter by default
-  });
-
-  const [filteredProperties, setFilteredProperties] = useState(properties);
+  const [allProperties, setAllProperties] = useState([]);
+  const [residentImages, setResidentImages] = useState([]);
+  const [filteredProperties, setFilteredProperties] = useState([]);
   const [initialLoad, setInitialLoad] = useState(true);
 
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters({
-      ...filters,
-      [name]: value,
-    });
-  };
+  const [filters, setFilters] = useState({
+    type: "Rent",
+    price: { min: 10000, max: 25000 },
+    bedrooms: "1 BHK",
+    sqft: { min: 500, max: 2000 },
+    yearBuilt: { min: 2000, max: 2025 },
+    location: "Delhi",
+    parking: "Available",
+    furnishing: "Semi-Furnished",
+    newConstruction: false,
+  });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch listings data
+        const listingsSnapshot = await getDocs(collection(db, "listings"));
+        const listingsData = listingsSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+        // Fetch ResidentProperty images
+        const residentSnapshot = await getDocs(collection(db, "ResidentProperty"));
+        const residentImagesData = residentSnapshot.docs.map((doc) =>
+          doc.data().images && doc.data().images.length > 0
+            ? doc.data().images[0]
+            : null
+        ).filter(Boolean);
+
+        setAllProperties(listingsData);
+        setFilteredProperties(listingsData);
+        setResidentImages(residentImagesData);
+      } catch (error) {
+        console.error("Error fetching properties:", error);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const handleSearch = () => {
-    setInitialLoad(false); // Set to false after the first search
+    setInitialLoad(false);
 
-    const filtered = properties.filter((property) => {
-      const matchesType = !filters.type || property.type === filters.type;
+    const filtered = allProperties.filter((property) => {
+      const matchesType =
+        !filters.type || property.type === filters.type;
       const matchesPrice =
-        !filters.price ||
-        (filters.price === '$15,000 - $18,000' && property.price >= 15000 && property.price <= 18000) ||
-        (filters.price === '$18,000 - $25,000' && property.price >= 18000 && property.price <= 25000);
-      const matchesBedrooms = !filters.bedrooms || property.bedrooms === parseInt(filters.bedrooms.split(' ')[0]);
-      const matchesSqft = property.sqft >= filters.sqft[0] && property.sqft <= filters.sqft[1];
-      const matchesYearBuilt = property.yearBuilt >= filters.yearBuilt[0] && property.yearBuilt <= filters.yearBuilt[1];
-      const matchesForSaleBy = !filters.forSaleBy || property.forSaleBy.toLowerCase().includes(filters.forSaleBy.toLowerCase());
-      const matchesNewConstruction = filters.newConstruction === false || property.newConstruction === filters.newConstruction;
+        property.Price >= filters.price.min &&
+        property.Price <= filters.price.max;
+      const matchesBedrooms =
+        !filters.bedrooms ||
+        property.bedrooms === parseInt(filters.bedrooms.split(" ")[0]);
+      const matchesSqft =
+        property.sqft >= filters.sqft.min && property.sqft <= filters.sqft.max;
+      const matchesYearBuilt =
+        property.yearBuilt >= filters.yearBuilt.min &&
+        property.yearBuilt <= filters.yearBuilt.max;
+      const matchesLocation =
+        !filters.location ||
+        property.address.toLowerCase().includes(filters.location.toLowerCase());
+      const matchesParking =
+        filters.parking === "Any" || property.parking === filters.parking;
+      const matchesFurnishing =
+        filters.furnishing === "Any" ||
+        property.furnishing === filters.furnishing;
+      const matchesNewConstruction =
+        filters.newConstruction === false ||
+        property.newConstruction === filters.newConstruction;
 
       return (
         matchesType &&
@@ -52,7 +85,9 @@ const PropertySearch = () => {
         matchesBedrooms &&
         matchesSqft &&
         matchesYearBuilt &&
-        matchesForSaleBy &&
+        matchesLocation &&
+        matchesParking &&
+        matchesFurnishing &&
         matchesNewConstruction
       );
     });
@@ -62,116 +97,72 @@ const PropertySearch = () => {
 
   return (
     <div className="bg-gray-50 p-6 rounded-xl shadow-lg max-w-7xl mx-auto my-6">
-      <h1 className="text-3xl font-bold mb-4">Find Property</h1>
-      <div className="flex">
-        {/* Filter Section on the Left */}
-        <div className="w-full md:w-1/4 p-4 bg-white shadow-lg rounded-lg">
-          <h2 className="text-xl font-semibold mb-4">Filters</h2>
-          <div className="mb-4">
-            <label className="block text-gray-700">Type</label>
-            <select
-              name="type"
-              value={filters.type}
-              onChange={handleFilterChange}
-              className="p-3 rounded-lg border border-gray-300 w-full"
-            >
-              <option value="">Any</option>
-              <option value="Buy">Buy</option>
-              <option value="Rent">Rent</option>
-            </select>
-          </div>
-          <div className="mb-4">
-            <label className="block text-gray-700">Price</label>
-            <select
-              name="price"
-              value={filters.price}
-              onChange={handleFilterChange}
-              className="p-3 rounded-lg border border-gray-300 w-full"
-            >
-              <option value="">Any</option>
-              <option>$15,000 - $18,000</option>
-              <option>$18,000 - $25,000</option>
-            </select>
-          </div>
-          <div className="mb-4">
-            <label className="block text-gray-700">Bedrooms</label>
-            <select
-              name="bedrooms"
-              value={filters.bedrooms}
-              onChange={handleFilterChange}
-              className="p-3 rounded-lg border border-gray-300 w-full"
-            >
-              <option value="">Any</option>
-              <option>3 BHK</option>
-              <option>2 BHK</option>
-            </select>
-          </div>
-          <div className="mb-4">
-            <label className="block text-gray-700">Square Feet</label>
-            <input
-              type="number"
-              name="sqft"
-              value={filters.sqft[1]}
-              onChange={(e) => setFilters({ ...filters, sqft: [filters.sqft[0], parseInt(e.target.value)] })}
-              className="p-3 rounded-lg border border-gray-300 w-full"
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-gray-700">Year Built</label>
-            <input
-              type="number"
-              name="yearBuilt"
-              value={filters.yearBuilt[1]}
-              onChange={(e) => setFilters({ ...filters, yearBuilt: [filters.yearBuilt[0], parseInt(e.target.value)] })}
-              className="p-3 rounded-lg border border-gray-300 w-full"
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-gray-700">For Sale By</label>
-            <input
-              type="text"
-              name="forSaleBy"
-              value={filters.forSaleBy}
-              onChange={handleFilterChange}
-              className="p-3 rounded-lg border border-gray-300 w-full"
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-gray-700">New Construction</label>
-            <input
-              type="checkbox"
-              name="newConstruction"
-              checked={filters.newConstruction}
-              onChange={() => setFilters({ ...filters, newConstruction: !filters.newConstruction })}
-              className="p-3 rounded-lg border border-gray-300"
-            />
-          </div>
-          <button
-            onClick={handleSearch}
-            className="bg-black text-white px-6 py-3 rounded-lg flex items-center w-full"
-          >
-            Search
-            <FaSearch className="ml-2" /> {/* Use the imported search icon */}
-          </button>
-        </div>
+      <h1 className="text-3xl font-bold mb-6">Find Property</h1>
+      <div className="flex flex-col md:flex-row gap-6">
+        <PropertyFilters
+          filters={filters}
+          setFilters={setFilters}
+          handleSearch={handleSearch}
+        />
+        <div className="w-full md:w-3/4 p-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {(initialLoad ? allProperties : filteredProperties).map(
+              (property, idx) => (
+                <div
+                  key={property.id}
+                  className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-shadow duration-300 flex flex-col"
+                >
+                  {/* Image */}
+                  {residentImages[idx % residentImages.length] && (
+                    <div className="w-full aspect-[16/9] overflow-hidden rounded-t-2xl bg-gray-200">
+                      <img
+                        src={residentImages[idx % residentImages.length]}
+                        alt="Property"
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                      />
+                    </div>
+                  )}
+                  {/* Card Content */}
+                  <div className="flex flex-col flex-1 p-5">
+                    <h2 className="text-xl font-semibold mb-2 text-gray-900 truncate">
+                      {property.address}
+                    </h2>
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-indigo-600 font-medium">
+                        {property.type}
+                      </span>
+                      <span className="text-lg font-bold text-green-700">
+                        ₹{property.Price?.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-4 text-gray-700 text-sm mb-3">
+                      <span>
+                        <span className="font-semibold">{property.bedrooms}</span> Bed
+                      </span>
+                      <span>
+                        <span className="font-semibold">{property.sqft}</span> sqft
+                      </span>
+                      <span>
+                        <span className="font-semibold">{property.yearBuilt}</span>
+                      </span>
+                    </div>
+                    <div className="text-gray-600 text-sm mb-2">
+                      For Sale By:{" "}
+                      <span className="font-medium">{property.forSaleBy}</span>
+                    </div>
+                    <div className="text-gray-600 text-sm mb-2">
+                      New Construction:{" "}
+                      <span className="font-medium">
+                        {property.newConstruction ? "Yes" : "No"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )
+            )}
 
-        {/* Properties Display on the Right */}
-        <div className="w-full md:w-3/4 p-4">
-          <div className="mt-4">
-            {(initialLoad ? properties : filteredProperties).map((property) => (
-              <div key={property.id} className="bg-white p-4 rounded-lg shadow-lg mb-4">
-                <h2 className="text-xl font-semibold">{property.address}</h2>
-                <p>Type: {property.type}</p>
-                <p>Price: ${property.price}</p>
-                <p>Bedrooms: {property.bedrooms}</p>
-                <p>Square Feet: {property.sqft}</p>
-                <p>Year Built: {property.yearBuilt}</p>
-                <p>For Sale By: {property.forSaleBy}</p>
-                <p>New Construction: {property.newConstruction ? 'Yes' : 'No'}</p>
-              </div>
-            ))}
-            {(initialLoad && properties.length === 0) && (
-              <div className="bg-white p-4 rounded-lg shadow-lg mb-4">
+            {!initialLoad && filteredProperties.length === 0 && (
+              <div className="col-span-full bg-white p-6 rounded-lg shadow-lg text-center">
                 <p>No properties found.</p>
               </div>
             )}
